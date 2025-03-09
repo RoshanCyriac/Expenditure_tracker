@@ -1,3 +1,4 @@
+import 'dotenv/config';
 import express from 'express';
 import path from 'path';
 import bodyParser from "body-parser";
@@ -11,16 +12,27 @@ import {  signInUser } from './email.js';
 
 const PgSession = connectPgSimple(session);
 const app = express();
-const port = 5000;
+const port = process.env.PORT || 5000;
 const { Pool } = pkg;
+
+// Database configuration
 const pool = new Pool({
-    user: "postgres",
-    host: "localhost",
-    database: "expenditure",
-    password: "Roshan@7408",
-    port: 5432,
+    user: process.env.DB_USER,
+    host: process.env.DB_HOST,
+    database: process.env.DB_NAME,
+    password: process.env.DB_PASSWORD,
+    port: parseInt(process.env.DB_PORT || '5432'),
 });
-pool.connect();
+
+// Test database connection
+pool.connect((err, client, done) => {
+    if (err) {
+        console.error('Error connecting to the database:', err);
+    } else {
+        console.log('Successfully connected to database');
+        done();
+    }
+});
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -29,109 +41,72 @@ const __dirname = path.dirname(__filename);
 app.use(bodyParser.urlencoded({ extended: true }));
 app.use(express.json());
 app.use(session({
-    store: new PgSession({
+    store: new connectPgSimple({
         pool: pool,
         tableName: "session"
     }),
-    secret: "your-secret-key",
+    secret: process.env.SESSION_SECRET || "your-secret-key",
     resave: false,
     saveUninitialized: false,
     cookie: {
         secure: false,
         httpOnly: true,
-        maxAge: 1000 * 60 * 60 * 24
+        maxAge: 1000 * 60 * 60 * 24 // 1 day
     }
 }));
 
-// Serve static files from React build directory in production
-if (process.env.NODE_ENV === 'production') {
-    app.use(express.static(path.join(__dirname, '../frontend/build')));
-}
-
-// Authentication endpoints
-app.post('/api/validate-email', async (req, res) => {
-    const { email } = req.body;
-
-    if (!email) {
-        return res.status(400).json({ error: 'Email is required' });
+// Authentication middleware
+const requireAuth = (req, res, next) => {
+    if (!req.session || !req.session.userId) {
+        return res.status(401).json({ message: "Unauthorized" });
     }
+    next();
+};
 
-    try {
-        const auth = getAuth();
-        let user;
-
-        try {
-            user = await getUserByEmail(auth, email);
-        } catch (error) {
-            user = null;
-        }
-
-        if (!user) {
-            const userCredential = await createUserWithEmailAndPassword(auth, email, 'defaultpassword');
-            user = userCredential.user;
-            await sendEmailVerification(user);
-            return res.status(200).json({
-                message: 'Registration successful. Verification email sent. Please check your inbox.',
-            });
-        }
-
-        if (!user.emailVerified) {
-            await sendEmailVerification(user);
-            return res.status(200).json({
-                message: 'Verification email sent. Please check your inbox.',
-            });
-        } else {
-            return res.status(200).json({ message: 'Email is already verified. You can proceed to login.' });
-        }
-    } catch (error) {
-        console.error('Error during registration or verification:', error);
-        return res.status(500).json({ error: 'Internal server error' });
-    }
-});
-
-app.post('/api/register', async(req,res) => {
+// Auth routes
+app.post('/api/register', async(req, res) => {
     const { email, username, password, phonenumber } = req.body;
     try {
-        const phonenumber_search = await pool.query("SELECT phone_number FROM users WHERE phone_number LIKE $1", [`%${phonenumber}%`]);
-        const username_search = await pool.query("SELECT username FROM users WHERE username LIKE $1", [`%${username}%`]);
-        const email_search = await pool.query("SELECT email FROM users WHERE email LIKE $1", [`%${email}%`]);
-        
-        if (username_search.rows.length === 0 && email_search.rows.length === 0 && phonenumber_search.rows.length === 0) {
-            await pool.query(
-                "INSERT INTO users(username, email, password, phone_number) VALUES($1, $2, $3, $4)",
-                [username, email, password, phonenumber]
-            );
-            res.json({ success: true });
-        } else {
-            res.status(400).json({ message: 'Username, email, or phone number already taken' });
+        const existingUser = await pool.query(
+            "SELECT * FROM users WHERE username = $1 OR email = $2 OR phone_number = $3",
+            [username, email, phonenumber]
+        );
+
+        if (existingUser.rows.length > 0) {
+            return res.status(400).json({ message: 'Username, email, or phone number already taken' });
         }
+
+        const result = await pool.query(
+            "INSERT INTO users(username, email, password, phone_number) VALUES($1, $2, $3, $4) RETURNING id",
+            [username, email, password, phonenumber]
+        );
+        
+        res.json({ success: true, userId: result.rows[0].id });
     } catch (err) {
         console.error('Error during registration:', err);
         res.status(500).json({ message: 'Database error' });
     }
 });
 
-app.post('/api/login', async(req,res) => {
-    const { login_username, login_password } = req.body;
+app.post('/api/login', async(req, res) => {
+    const { username, password } = req.body;
     try {
-        const username_search = await pool.query("SELECT username FROM users WHERE username LIKE $1", [`%${login_username}%`]);
+        const result = await pool.query(
+            "SELECT id, password FROM users WHERE username = $1",
+            [username]
+        );
 
-        if (username_search.rows.length === 0) {
-            res.status(404).json({ message: "Username not found" });
+        if (result.rows.length === 0) {
+            return res.status(404).json({ message: "Username not found" });
+        }
+
+        const user = result.rows[0];
+        if (password === user.password) {
+            req.session.userId = user.id;
+            await req.session.save();
+            res.json({ success: true });
         } else {
-            const username_result = username_search.rows[0].username;
-            const userQuery = await pool.query("SELECT id, password FROM users WHERE username = $1", [login_username]);
-
-            const userId = userQuery.rows[0].id;
-            const password_result = userQuery.rows[0].password;
-
-            if (login_password === password_result) {
-                req.session.userId = userId;
-                await req.session.save();
-                res.json({ success: true });
-            } else {
-                res.status(401).json({ message: "Password incorrect" });
-            }
+            res.status(401).json({ message: "Password incorrect" });
         }
     } catch (err) {
         console.error(err);
@@ -148,27 +123,32 @@ app.post('/api/logout', (req, res) => {
     });
 });
 
-// Session check endpoint
-app.get('/api/check-session', (req, res) => {
-    if (req.session.userId) {
-        res.json({ message: "Session found", userId: req.session.userId });
-    } else {
-        res.status(401).json({ message: "No session found" });
+// Protected routes
+app.get('/api/user', requireAuth, async (req, res) => {
+    try {
+        const result = await pool.query(
+            "SELECT username FROM users WHERE id = $1",
+            [req.session.userId]
+        );
+        
+        if (result.rows.length === 0) {
+            return res.status(404).json({ message: "User not found" });
+        }
+
+        res.json({ username: result.rows[0].username });
+    } catch (error) {
+        console.error(error);
+        res.status(500).json({ message: "Database error" });
     }
 });
 
-// API Routes
-app.get('/api/categories', async (req, res) => {
-    if (!req.session || !req.session.userId) {
-        return res.status(401).json({ message: "Unauthorized" });
-    }
-
+app.get('/api/categories', requireAuth, async (req, res) => {
     try {
-        const category_query = await pool.query(
+        const result = await pool.query(
             "SELECT section_name FROM user_sections WHERE user_id = $1",
             [req.session.userId]
         );
-        const categories = category_query.rows.map(row => row.section_name);
+        const categories = result.rows.map(row => row.section_name);
         res.json(categories);
     } catch (error) {
         console.error(error);
@@ -176,96 +156,7 @@ app.get('/api/categories', async (req, res) => {
     }
 });
 
-app.get('/api/user', async (req, res) => {
-    if (!req.session || !req.session.userId) {
-        return res.status(401).json({ message: "Unauthorized" });
-    }
-
-    try {
-        const userQuery = await pool.query(
-            "SELECT username FROM users WHERE id = $1",
-            [req.session.userId]
-        );
-        
-        if (userQuery.rows.length === 0) {
-            return res.status(404).json({ message: "User not found" });
-        }
-
-        res.json({ username: userQuery.rows[0].username });
-    } catch (error) {
-        console.error(error);
-        res.status(500).json({ message: "Database error" });
-    }
-});
-
-app.get('/api/transactions/:category', async (req, res) => {
-    if (!req.session || !req.session.userId) {
-        return res.status(401).json({ message: "Unauthorized" });
-    }
-
-    const userId = req.session.userId;
-    const category = req.params.category;
-
-    try {
-        const transactionsQuery = await pool.query(
-            `SELECT 
-                t.transaction_id as id,
-                t.amount, 
-                t.created_at 
-            FROM user_transactions t
-            JOIN user_sections s ON t.section_id = s.section_id
-            WHERE t.user_id = $1 AND s.section_name = $2
-            ORDER BY t.created_at DESC`,
-            [userId, category]
-        );
-        
-        const sumQuery = await pool.query(
-            `SELECT SUM(t.amount) AS total_amount 
-            FROM user_transactions t
-            JOIN user_sections s ON t.section_id = s.section_id
-            WHERE t.user_id = $1 AND s.section_name = $2`,
-            [userId, category]
-        );
-
-        res.json({
-            transactions: transactionsQuery.rows,
-            totalAmount: sumQuery.rows[0].total_amount || 0
-        });
-    } catch (error) {
-        console.error(error);
-        res.status(500).json({ message: "Database error" });
-    }
-});
-
-app.post("/api/add-expense", async (req, res) => {
-    if (!req.session || !req.session.userId) {
-        return res.status(401).json({ message: "Unauthorized" });
-    }
-
-    const { amount, category } = req.body;
-    if (!amount || !category) {
-        return res.status(400).json({ message: "Amount and category are required" });
-    }
-
-    try {
-        await pool.query(
-            `INSERT INTO user_transactions(user_id, section_id, amount, created_at) 
-            VALUES ($1, (SELECT section_id FROM user_sections WHERE section_name = $2 AND user_id = $1), $3, NOW())`,
-            [req.session.userId, category, amount]
-        );
-        
-        res.json({ success: true });
-    } catch (error) {
-        console.error(error);
-        res.status(500).json({ message: "Database error" });
-    }
-});
-
-app.post("/api/add-section", async (req, res) => {
-    if (!req.session || !req.session.userId) {
-        return res.status(401).json({ message: "Unauthorized" });
-    }
-
+app.post("/api/add-section", requireAuth, async (req, res) => {
     const { sectionName } = req.body;
     if (!sectionName) {
         return res.status(400).json({ message: "Section name is required" });
@@ -283,13 +174,68 @@ app.post("/api/add-section", async (req, res) => {
     }
 });
 
-// Catch-all route to serve React app in production
+app.post("/api/add-expense", requireAuth, async (req, res) => {
+    const { amount, category } = req.body;
+    if (!amount || !category) {
+        return res.status(400).json({ message: "Amount and category are required" });
+    }
+
+    try {
+        await pool.query(
+            `INSERT INTO user_transactions(user_id, section_id, amount, created_at) 
+            VALUES ($1, (SELECT section_id FROM user_sections WHERE section_name = $2 AND user_id = $1), $3, NOW())`,
+            [req.session.userId, category, amount]
+        );
+        res.json({ success: true });
+    } catch (error) {
+        console.error(error);
+        res.status(500).json({ message: "Database error" });
+    }
+});
+
+app.get('/api/transactions/:category', requireAuth, async (req, res) => {
+    const category = req.params.category;
+
+    try {
+        const transactionsQuery = await pool.query(
+            `SELECT 
+                t.transaction_id as id,
+                t.amount, 
+                t.created_at 
+            FROM user_transactions t
+            JOIN user_sections s ON t.section_id = s.section_id
+            WHERE t.user_id = $1 AND s.section_name = $2
+            ORDER BY t.created_at DESC`,
+            [req.session.userId, category]
+        );
+        
+        const sumQuery = await pool.query(
+            `SELECT SUM(t.amount) AS total_amount 
+            FROM user_transactions t
+            JOIN user_sections s ON t.section_id = s.section_id
+            WHERE t.user_id = $1 AND s.section_name = $2`,
+            [req.session.userId, category]
+        );
+
+        res.json({
+            transactions: transactionsQuery.rows,
+            totalAmount: sumQuery.rows[0].total_amount || 0
+        });
+    } catch (error) {
+        console.error(error);
+        res.status(500).json({ message: "Database error" });
+    }
+});
+
+// Serve React app in production
 if (process.env.NODE_ENV === 'production') {
+    app.use(express.static(path.join(__dirname, '../frontend/build')));
     app.get('*', (req, res) => {
         res.sendFile(path.join(__dirname, '../frontend/build', 'index.html'));
     });
 }
 
+// Start server
 app.listen(port, () => {
     console.log(`Server running on port ${port}`);
 });
