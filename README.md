@@ -1,3 +1,91 @@
+# Expenditure Tracker
+
+A full-stack web application for tracking personal expenses, built with React and Node.js.
+
+## Project Structure
+
+```
+expenditure-tracker/
+├── backend/             # Backend Node.js/Express server
+│   ├── index.js        # Main server file
+│   ├── email.js        # Email verification logic
+│   └── package.json    # Backend dependencies
+│
+└── frontend/           # React frontend application
+    ├── public/         # Static files
+    ├── src/           # React source code
+    │   ├── components/  # React components
+    │   └── App.js      # Main React component
+    └── package.json    # Frontend dependencies
+```
+
+## Prerequisites
+
+- Node.js (v18 or higher)
+- PostgreSQL
+- npm or yarn
+
+## Setup
+
+1. Clone the repository:
+```bash
+git clone <repository-url>
+cd expenditure-tracker
+```
+
+2. Set up the backend:
+```bash
+cd backend
+npm install
+```
+
+3. Set up the frontend:
+```bash
+cd ../frontend
+npm install
+```
+
+4. Create a PostgreSQL database named 'expenditure' and update the database configuration in `backend/index.js` if needed.
+
+5. Start the development servers:
+
+Backend (from the backend directory):
+```bash
+npm run dev
+```
+
+Frontend (from the frontend directory):
+```bash
+npm start
+```
+
+The backend will run on http://localhost:5000 and the frontend will run on http://localhost:3000.
+
+## Features
+
+- User authentication
+- Expense tracking by categories
+- Transaction history
+- Category management
+- Session management
+- Responsive Material-UI design
+
+## Production Deployment
+
+1. Build the frontend:
+```bash
+cd frontend
+npm run build
+```
+
+2. Start the production server:
+```bash
+cd ../backend
+NODE_ENV=production npm start
+```
+
+The application will be served from http://localhost:5000 with the frontend static files being served by the backend.
+
 # Expenditure Management App
 
 ## Table of Contents
