@@ -19,12 +19,15 @@ import {
   DialogActions,
   Alert,
   IconButton,
+  CircularProgress,
+  Paper,
 } from '@mui/material';
 import axios from 'axios';
 import DeleteIcon from '@mui/icons-material/Delete';
 import MoreVertIcon from '@mui/icons-material/MoreVert';
 import EditIcon from '@mui/icons-material/Edit';
 import AccountBalanceWalletIcon from '@mui/icons-material/AccountBalanceWallet';
+import SavingsIcon from '@mui/icons-material/Savings';
 
 function Dashboard() {
   const navigate = useNavigate();
@@ -47,22 +50,52 @@ function Dashboard() {
   const [editExpenseDialogOpen, setEditExpenseDialogOpen] = useState(false);
   const [expenseToEdit, setExpenseToEdit] = useState(null);
   const [editedExpense, setEditedExpense] = useState({ amount: '', category: '' });
+  const [savingsTarget, setSavingsTarget] = useState(null);
+  const [virtualSavings, setVirtualSavings] = useState(null);
+  const [savingsProgress, setSavingsProgress] = useState(0);
 
   // Fetch categories and recent expenses when component mounts
   useEffect(() => {
     const fetchData = async () => {
       try {
         const token = localStorage.getItem('token');
-        const [categoriesRes, expensesRes] = await Promise.all([
+        const [categoriesRes, expensesRes, savingsTargetRes, virtualSavingsRes] = await Promise.all([
           axios.get('http://localhost:5000/api/categories', {
             headers: { Authorization: `Bearer ${token}` }
           }),
           axios.get('http://localhost:5000/api/recent-expenses', {
             headers: { Authorization: `Bearer ${token}` }
+          }),
+          axios.get('http://localhost:5000/api/savings-target', {
+            headers: { Authorization: `Bearer ${token}` }
+          }),
+          axios.get('http://localhost:5000/api/virtual-savings/summary', {
+            headers: { Authorization: `Bearer ${token}` }
           })
         ]);
+        
         setCategories(categoriesRes.data);
         setRecentExpenses(expensesRes.data);
+        setSavingsTarget(savingsTargetRes.data);
+        setVirtualSavings(virtualSavingsRes.data);
+
+        // Calculate progress
+        if (savingsTargetRes.data && virtualSavingsRes.data) {
+          const target = savingsTargetRes.data;
+          const savings = parseFloat(virtualSavingsRes.data.totalSavings);
+          let monthlyTarget = parseFloat(target.amount);
+          
+          // Convert target to monthly if it's not
+          if (target.period === 'daily') {
+            const daysInMonth = new Date(new Date().getFullYear(), new Date().getMonth() + 1, 0).getDate();
+            monthlyTarget = monthlyTarget * daysInMonth;
+          } else if (target.period === 'yearly') {
+            monthlyTarget = monthlyTarget / 12;
+          }
+          
+          const progress = (savings / monthlyTarget) * 100;
+          setSavingsProgress(Math.min(progress, 100));
+        }
       } catch (error) {
         console.error('Error fetching data:', error);
       }
@@ -209,6 +242,103 @@ function Dashboard() {
     }
   };
 
+  // Add the savings progress component
+  const renderSavingsProgress = () => (
+    <Paper
+      sx={{
+        bgcolor: '#262626',
+        borderRadius: 3,
+        p: 3,
+        border: '1px solid rgba(255, 255, 255, 0.1)',
+        display: 'flex',
+        flexDirection: 'column',
+        alignItems: 'center',
+        gap: 2,
+        position: 'relative',
+        overflow: 'hidden'
+      }}
+    >
+      <Box sx={{ 
+        position: 'absolute',
+        top: 0,
+        left: 0,
+        right: 0,
+        height: '4px',
+        background: 'linear-gradient(90deg, #8b5cf6 0%, #22c55e 100%)',
+        opacity: 0.5
+      }} />
+      
+      <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, alignSelf: 'flex-start' }}>
+        <SavingsIcon sx={{ color: '#8b5cf6' }} />
+        <Typography sx={{ color: '#8b5cf6', fontWeight: 600 }}>
+          Savings Progress
+        </Typography>
+      </Box>
+
+      <Box sx={{ position: 'relative', display: 'inline-flex', width: '150px', height: '150px' }}>
+        <CircularProgress
+          variant="determinate"
+          value={savingsProgress}
+          size={150}
+          thickness={4}
+          sx={{
+            color: '#22c55e',
+            '& .MuiCircularProgress-circle': {
+              strokeLinecap: 'round',
+            },
+          }}
+        />
+        <Box
+          sx={{
+            top: 0,
+            left: 0,
+            bottom: 0,
+            right: 0,
+            position: 'absolute',
+            display: 'flex',
+            flexDirection: 'column',
+            alignItems: 'center',
+            justifyContent: 'center',
+          }}
+        >
+          <Typography variant="h4" sx={{ color: '#22c55e', fontWeight: 600 }}>
+            {savingsProgress.toFixed(0)}%
+          </Typography>
+          <Typography variant="body2" sx={{ color: 'rgba(255, 255, 255, 0.7)' }}>
+            of target
+          </Typography>
+        </Box>
+      </Box>
+
+      {savingsTarget && virtualSavings && (
+        <Box sx={{ textAlign: 'center' }}>
+          <Typography sx={{ color: 'white', mb: 1 }}>
+            Current Savings: ₹{parseFloat(virtualSavings.totalSavings).toFixed(2)}
+          </Typography>
+          <Typography sx={{ color: 'rgba(255, 255, 255, 0.7)' }}>
+            Target: ₹{parseFloat(savingsTarget.amount).toFixed(2)} per {savingsTarget.period}
+          </Typography>
+        </Box>
+      )}
+
+      <Button
+        variant="outlined"
+        onClick={() => navigate('/savings-target')}
+        sx={{
+          color: '#8b5cf6',
+          borderColor: 'rgba(139, 92, 246, 0.5)',
+          '&:hover': {
+            borderColor: '#8b5cf6',
+            bgcolor: 'rgba(139, 92, 246, 0.1)'
+          },
+          mt: 1
+        }}
+      >
+        View Details
+      </Button>
+    </Paper>
+  );
+
   return (
     <>
       <AppBar 
@@ -314,258 +444,267 @@ function Dashboard() {
         }}
       >
         {/* Welcome Section */}
-        <Box 
-          sx={{ 
-            display: 'flex',
-            flexDirection: { xs: 'column', md: 'row' },
-            gap: { xs: 4, md: 8 },
-            alignItems: { md: 'center' },
-            justifyContent: 'space-between',
-            mb: { xs: 4, md: 6 },
-            position: 'relative',
-            '&::before': {
-              content: '""',
-              position: 'absolute',
-              top: -40,
-              left: -80,
-              width: 200,
-              height: 200,
-              background: 'radial-gradient(circle, rgba(139, 92, 246, 0.15) 0%, rgba(139, 92, 246, 0) 70%)',
-              borderRadius: '50%',
-              pointerEvents: 'none',
-              zIndex: 0
-            }
-          }}
-        >
-          <Box sx={{ position: 'relative', zIndex: 1 }}>
-            <Box sx={{ mb: 3 }}>
-              <Typography 
-                variant="h6" 
-                sx={{ 
-                  color: '#8b5cf6',
-                  fontWeight: 600,
-                  mb: 1,
-                  display: 'flex',
-                  alignItems: 'center',
-                  gap: 1,
-                  fontSize: { xs: '1rem', md: '1.1rem' }
-                }}
-              >
-                <Box 
-                  component="span" 
-                  sx={{ 
-                    width: 8, 
-                    height: 8, 
-                    borderRadius: '50%', 
-                    bgcolor: '#8b5cf6',
-                    animation: 'pulse 2s infinite'
-                  }} 
-                />
-                Dashboard Overview
-              </Typography>
-              <Typography 
-                variant="h3" 
-                sx={{ 
-                  fontWeight: 800,
-                  fontSize: { xs: '2rem', sm: '2.5rem', md: '2.8rem' },
-                  letterSpacing: '-0.5px',
-                  lineHeight: 1.2,
-                  mb: 2,
+        <Box sx={{ display: 'flex', gap: 4, flexWrap: { xs: 'wrap', md: 'nowrap' } }}>
+          <Box sx={{ flex: '1 1 60%' }}>
+            <Box 
+              sx={{ 
+                display: 'flex',
+                flexDirection: { xs: 'column', md: 'row' },
+                gap: { xs: 4, md: 8 },
+                alignItems: { md: 'center' },
+                justifyContent: 'space-between',
+                mb: { xs: 4, md: 6 },
+                position: 'relative',
+                '&::before': {
+                  content: '""',
+                  position: 'absolute',
+                  top: -40,
+                  left: -80,
+                  width: 200,
+                  height: 200,
+                  background: 'radial-gradient(circle, rgba(139, 92, 246, 0.15) 0%, rgba(139, 92, 246, 0) 70%)',
+                  borderRadius: '50%',
+                  pointerEvents: 'none',
+                  zIndex: 0
+                }
+              }}
+            >
+              <Box sx={{ position: 'relative', zIndex: 1 }}>
+                <Box sx={{ mb: 3 }}>
+                  <Typography 
+                    variant="h6" 
+                    sx={{ 
+                      color: '#8b5cf6',
+                      fontWeight: 600,
+                      mb: 1,
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: 1,
+                      fontSize: { xs: '1rem', md: '1.1rem' }
+                    }}
+                  >
+                    <Box 
+                      component="span" 
+                      sx={{ 
+                        width: 8, 
+                        height: 8, 
+                        borderRadius: '50%', 
+                        bgcolor: '#8b5cf6',
+                        animation: 'pulse 2s infinite'
+                      }} 
+                    />
+                    Dashboard Overview
+                  </Typography>
+                  <Typography 
+                    variant="h3" 
+                    sx={{ 
+                      fontWeight: 800,
+                      fontSize: { xs: '2rem', sm: '2.5rem', md: '2.8rem' },
+                      letterSpacing: '-0.5px',
+                      lineHeight: 1.2,
+                      mb: 2,
               color: 'white',
-                  position: 'relative'
-                }}
-              >
-                <Box component="span" sx={{
-                  display: 'block',
-                  position: 'relative',
-                  '&::before': {
-                    content: '""',
-                    position: 'absolute',
-                    left: -20,
-                    top: '50%',
-                    width: 4,
-                    height: '60%',
-                    bgcolor: '#8b5cf6',
-                    transform: 'translateY(-50%)',
-                    borderRadius: 4
-                  }
-                }}>
-                  Ready to track expenses?
+                      position: 'relative'
+                    }}
+                  >
+                    <Box component="span" sx={{
+                      display: 'block',
+                      position: 'relative',
+                      '&::before': {
+                        content: '""',
+                        position: 'absolute',
+                        left: -20,
+                        top: '50%',
+                        width: 4,
+                        height: '60%',
+                        bgcolor: '#8b5cf6',
+                        transform: 'translateY(-50%)',
+                        borderRadius: 4
+                      }
+                    }}>
+                      Ready to track expenses?
+                    </Box>
+                    <Box 
+                      component="span" 
+                      sx={{ 
+                        color: '#8b5cf6',
+                        position: 'relative',
+                        display: 'block',
+                        mt: 2,
+                        pl: 3,
+                        '&::before': {
+                          content: '""',
+                          position: 'absolute',
+                          left: 0,
+                          top: '50%',
+                          width: 12,
+                          height: 2,
+                          bgcolor: '#8b5cf6',
+                          transform: 'translateY(-50%)',
+                          borderRadius: 4
+                        },
+                        animation: 'slideIn 0.6s ease-out',
+                        '@keyframes slideIn': {
+                          from: {
+                            opacity: 0,
+                            transform: 'translateX(-20px)'
+                          },
+                          to: {
+                            opacity: 1,
+                            transform: 'translateX(0)'
+                          }
+                        }
+                      }}
+                    >
+                      {user?.username?.toUpperCase()}
+                    </Box>
+                  </Typography>
                 </Box>
-                <Box 
-                  component="span" 
+                <Box sx={{ 
+                  display: 'flex', 
+                  gap: 3, 
+                  alignItems: 'center',
+                  mb: 3
+                }}>
+                  <Box sx={{ 
+                    display: 'flex', 
+                    alignItems: 'center', 
+                    gap: 1.5,
+                    py: 1,
+                    px: 2,
+                    bgcolor: 'rgba(139, 92, 246, 0.1)',
+                    borderRadius: 2,
+                    border: '1px solid rgba(139, 92, 246, 0.2)'
+                  }}>
+                    <Box 
+                      sx={{ 
+                        width: 8,
+                        height: 8,
+                        borderRadius: '50%',
+                        bgcolor: '#22c55e'
+                      }}
+                    />
+                    <Typography 
+                      sx={{ 
+                        color: 'rgba(255, 255, 255, 0.9)',
+                        fontSize: '0.9rem',
+                        fontWeight: 500
+                      }}
+                    >
+                      Active Now
+                    </Typography>
+                  </Box>
+                  <Typography 
+                    sx={{ 
+                      color: 'rgba(255, 255, 255, 0.5)',
+                      fontSize: '0.9rem'
+                    }}
+                  >
+                    Last login: {new Date().toLocaleDateString()}
+                  </Typography>
+                </Box>
+                <Typography 
+                  variant="body1" 
                   sx={{ 
-                    color: '#8b5cf6',
+                    color: 'rgba(255, 255, 255, 0.7)',
+                    fontSize: { xs: '1rem', md: '1.1rem' },
+                    maxWidth: '600px',
+                    lineHeight: 1.6,
                     position: 'relative',
-                    display: 'block',
-                    mt: 2,
-                    pl: 3,
+                    pl: 4,
                     '&::before': {
                       content: '""',
                       position: 'absolute',
                       left: 0,
-                      top: '50%',
-                      width: 12,
+                      top: 12,
+                      width: 20,
                       height: 2,
                       bgcolor: '#8b5cf6',
-                      transform: 'translateY(-50%)',
-                      borderRadius: 4
-                    },
-                    animation: 'slideIn 0.6s ease-out',
-                    '@keyframes slideIn': {
-                      from: {
-                        opacity: 0,
-                        transform: 'translateX(-20px)'
-                      },
-                      to: {
-                        opacity: 1,
-                        transform: 'translateX(0)'
-                      }
+                      borderRadius: 1
                     }
                   }}
                 >
-                  {user?.username?.toUpperCase()}
-                </Box>
-              </Typography>
-            </Box>
-            <Box sx={{ 
-              display: 'flex', 
-              gap: 3, 
-              alignItems: 'center',
-              mb: 3
-            }}>
-              <Box sx={{ 
-                display: 'flex', 
-                alignItems: 'center', 
-                gap: 1.5,
-                py: 1,
-                px: 2,
-                bgcolor: 'rgba(139, 92, 246, 0.1)',
-                borderRadius: 2,
-                border: '1px solid rgba(139, 92, 246, 0.2)'
-              }}>
-                <Box 
-                  sx={{ 
-                    width: 8,
-                    height: 8,
-                    borderRadius: '50%',
-                    bgcolor: '#22c55e'
-                  }}
-                />
-                <Typography 
-                  sx={{ 
-                    color: 'rgba(255, 255, 255, 0.9)',
-                    fontSize: '0.9rem',
-                    fontWeight: 500
-                  }}
-                >
-                  Active Now
+                  Track your expenses, manage your budget, and achieve your financial goals with ease.
                 </Typography>
               </Box>
-              <Typography 
+
+              <Box sx={{ 
+                display: 'flex', 
+                gap: 2,
+                flexWrap: 'wrap',
+                position: 'relative',
+                zIndex: 1
+              }}>
+              <Button 
+                  variant="contained"
+                  size="large"
+                  onClick={() => setExpenseDialogOpen(true)}
                 sx={{ 
-                  color: 'rgba(255, 255, 255, 0.5)',
-                  fontSize: '0.9rem'
+                    bgcolor: '#8b5cf6',
+                  color: 'white',
+                    fontSize: '0.95rem',
+                    py: 1.8,
+                    px: 4,
+                    borderRadius: 2,
+                    textTransform: 'none',
+                    fontWeight: 600,
+                    position: 'relative',
+                    overflow: 'hidden',
+                    '&::before': {
+                      content: '""',
+                      position: 'absolute',
+                      top: 0,
+                      left: 0,
+                      width: '100%',
+                      height: '100%',
+                      background: 'linear-gradient(45deg, transparent 0%, rgba(255, 255, 255, 0.1) 50%, transparent 100%)',
+                      transform: 'translateX(-100%)',
+                      transition: 'transform 0.6s'
+                    },
+                  '&:hover': {
+                      bgcolor: '#7c3aed',
+                      transform: 'translateY(-2px)',
+                      '&::before': {
+                        transform: 'translateX(100%)'
+                  }
+                    },
+                    transition: 'all 0.3s ease'
                 }}
               >
-                Last login: {new Date().toLocaleDateString()}
-              </Typography>
+                  Add Expense
+              </Button>
+              <Button 
+                variant="outlined" 
+                  size="large"
+                  onClick={() => setSectionDialogOpen(true)}
+                sx={{ 
+                  color: 'white',
+                    borderColor: 'rgba(255, 255, 255, 0.5)',
+                    fontSize: '0.95rem',
+                    py: 1.8,
+                    px: 4,
+                    borderRadius: 2,
+                    textTransform: 'none',
+                    fontWeight: 600,
+                    backdropFilter: 'blur(10px)',
+                    bgcolor: 'rgba(255, 255, 255, 0.05)',
+                  '&:hover': {
+                    borderColor: 'white',
+                      bgcolor: 'rgba(255, 255, 255, 0.1)',
+                      transform: 'translateY(-2px)',
+                    },
+                    transition: 'all 0.3s ease'
+                  }}
+                >
+                  Add Section
+              </Button>
+              </Box>
             </Box>
-            <Typography 
-              variant="body1" 
-              sx={{ 
-                color: 'rgba(255, 255, 255, 0.7)',
-                fontSize: { xs: '1rem', md: '1.1rem' },
-                maxWidth: '600px',
-                lineHeight: 1.6,
-                position: 'relative',
-                pl: 4,
-                '&::before': {
-                  content: '""',
-                  position: 'absolute',
-                  left: 0,
-                  top: 12,
-                  width: 20,
-                  height: 2,
-                  bgcolor: '#8b5cf6',
-                  borderRadius: 1
-                }
-              }}
-            >
-              Track your expenses, manage your budget, and achieve your financial goals with ease.
-            </Typography>
           </Box>
-
-          <Box sx={{ 
-            display: 'flex', 
-            gap: 2,
-            flexWrap: 'wrap',
-            position: 'relative',
-            zIndex: 1
-          }}>
-          <Button 
-              variant="contained"
-              size="large"
-              onClick={() => setExpenseDialogOpen(true)}
-            sx={{ 
-                bgcolor: '#8b5cf6',
-              color: 'white',
-                fontSize: '0.95rem',
-                py: 1.8,
-                px: 4,
-                borderRadius: 2,
-                textTransform: 'none',
-                fontWeight: 600,
-                position: 'relative',
-                overflow: 'hidden',
-                '&::before': {
-                  content: '""',
-                  position: 'absolute',
-                  top: 0,
-                  left: 0,
-                  width: '100%',
-                  height: '100%',
-                  background: 'linear-gradient(45deg, transparent 0%, rgba(255, 255, 255, 0.1) 50%, transparent 100%)',
-                  transform: 'translateX(-100%)',
-                  transition: 'transform 0.6s'
-                },
-              '&:hover': {
-                  bgcolor: '#7c3aed',
-                  transform: 'translateY(-2px)',
-                  '&::before': {
-                    transform: 'translateX(100%)'
-              }
-                },
-                transition: 'all 0.3s ease'
-            }}
-          >
-              Add Expense
-          </Button>
-          <Button 
-            variant="outlined" 
-              size="large"
-              onClick={() => setSectionDialogOpen(true)}
-            sx={{ 
-              color: 'white',
-                borderColor: 'rgba(255, 255, 255, 0.5)',
-                fontSize: '0.95rem',
-                py: 1.8,
-                px: 4,
-                borderRadius: 2,
-                textTransform: 'none',
-                fontWeight: 600,
-                backdropFilter: 'blur(10px)',
-                bgcolor: 'rgba(255, 255, 255, 0.05)',
-              '&:hover': {
-                borderColor: 'white',
-                  bgcolor: 'rgba(255, 255, 255, 0.1)',
-                  transform: 'translateY(-2px)',
-                },
-                transition: 'all 0.3s ease'
-              }}
-            >
-              Add Section
-          </Button>
+          
+          {/* Add Savings Progress Section */}
+          <Box sx={{ flex: '1 1 40%', minWidth: { xs: '100%', md: '300px' } }}>
+            {renderSavingsProgress()}
           </Box>
         </Box>
 
