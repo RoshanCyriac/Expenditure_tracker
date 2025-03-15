@@ -4,6 +4,7 @@ import Login from './components/Login';
 import SignUp from './components/SignUp';
 import Dashboard from './components/Dashboard';
 import SectionTransactions from './components/SectionTransactions';
+import BudgetManagement from './components/BudgetManagement';
 import { AuthProvider, useAuth } from './context/AuthContext';
 import { CircularProgress, Box } from '@mui/material';
 
@@ -54,6 +55,14 @@ function App() {
             element={
               <ProtectedRoute>
                 <SectionTransactions />
+              </ProtectedRoute>
+            } 
+          />
+          <Route 
+            path="/budget" 
+            element={
+              <ProtectedRoute>
+                <BudgetManagement />
               </ProtectedRoute>
             } 
           />

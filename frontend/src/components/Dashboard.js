@@ -24,6 +24,7 @@ import axios from 'axios';
 import DeleteIcon from '@mui/icons-material/Delete';
 import MoreVertIcon from '@mui/icons-material/MoreVert';
 import EditIcon from '@mui/icons-material/Edit';
+import AccountBalanceWalletIcon from '@mui/icons-material/AccountBalanceWallet';
 
 function Dashboard() {
   const navigate = useNavigate();
@@ -282,6 +283,21 @@ function Dashboard() {
               Sign Out
           </Button>
           </Box>
+          <Button
+            onClick={() => navigate('/budget')}
+            startIcon={<AccountBalanceWalletIcon />}
+            sx={{
+              color: '#8b5cf6',
+              borderColor: '#8b5cf6',
+              '&:hover': {
+                borderColor: '#7c3aed',
+                bgcolor: 'rgba(139, 92, 246, 0.1)'
+              }
+            }}
+            variant="outlined"
+          >
+            Manage Budgets
+          </Button>
         </Toolbar>
       </AppBar>
 

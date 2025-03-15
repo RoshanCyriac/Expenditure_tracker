@@ -5,9 +5,11 @@ const passport = require('passport');
 const GoogleStrategy = require('passport-google-oauth20').Strategy;
 const JwtStrategy = require('passport-jwt').Strategy;
 const ExtractJwt = require('passport-jwt').ExtractJwt;
+const { Op } = require('sequelize');
 const User = require('./models/User');
 const Section = require('./models/Section');
 const Expense = require('./models/Expense');
+const Budget = require('./models/Budget');
 const sequelize = require('./config/database');
 const jwt = require('jsonwebtoken');
 
@@ -347,6 +349,152 @@ app.get('/api/sections/:section/transactions', passport.authenticate('jwt', { se
   } catch (error) {
     console.error('Error fetching section transactions:', error);
     res.status(500).json({ message: 'Error fetching section transactions' });
+  }
+});
+
+// Get all sections
+app.get('/api/sections', passport.authenticate('jwt', { session: false }), async (req, res) => {
+  try {
+    const sections = await Section.findAll({
+      where: { userId: req.user.id }
+    });
+    res.json(sections);
+  } catch (error) {
+    res.status(500).json({ message: 'Error fetching sections' });
+  }
+});
+
+// Get budgets
+app.get('/api/budgets', passport.authenticate('jwt', { session: false }), async (req, res) => {
+  try {
+    const budgets = await Budget.findAll({
+      where: { userId: req.user.id }
+    });
+    res.json(budgets);
+  } catch (error) {
+    res.status(500).json({ message: 'Error fetching budgets' });
+  }
+});
+
+// Save budgets
+app.post('/api/budgets', passport.authenticate('jwt', { session: false }), async (req, res) => {
+  try {
+    const userId = req.user.id;
+    
+    // Delete existing budgets for this user
+    await Budget.destroy({
+      where: { userId: userId }
+    });
+
+    // Create new budgets
+    const budgets = req.body.map(budget => ({
+      ...budget,
+      userId: userId
+    }));
+    
+    const savedBudgets = await Budget.bulkCreate(budgets);
+    res.json(savedBudgets);
+  } catch (error) {
+    console.error('Error saving budgets:', error);
+    res.status(500).json({ message: 'Error saving budgets' });
+  }
+});
+
+// Get current month's transactions for budget calculations
+app.get('/api/transactions/current-month', passport.authenticate('jwt', { session: false }), async (req, res) => {
+  try {
+    const now = new Date();
+    const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1);
+    const endOfMonth = new Date(now.getFullYear(), now.getMonth() + 1, 0, 23, 59, 59);
+
+    // Get transactions for current month
+    const transactions = await Expense.findAll({
+      where: {
+        userId: req.user.id,
+        createdAt: {
+          [Op.between]: [startOfMonth, endOfMonth]
+        }
+      },
+      attributes: ['section', 'amount', 'createdAt']
+    });
+
+    // Get budgets for calculations
+    const budgets = await Budget.findAll({
+      where: { userId: req.user.id }
+    });
+
+    // Calculate totals by section
+    const sectionTotals = transactions.reduce((acc, transaction) => {
+      const section = transaction.section || 'uncategorized';
+      acc[section] = (acc[section] || 0) + parseFloat(transaction.amount);
+      return acc;
+    }, {});
+
+    // Calculate overall total spent
+    const totalSpent = Object.values(sectionTotals).reduce((sum, amount) => sum + amount, 0);
+
+    // Get total budget and its period
+    const totalBudgetEntry = budgets.find(b => b.section === 'total');
+    let effectiveTotalBudget = 0;
+    
+    if (totalBudgetEntry) {
+      // Convert total budget to monthly equivalent
+      switch (totalBudgetEntry.period) {
+        case 'yearly':
+          effectiveTotalBudget = totalBudgetEntry.amount / 12;
+          break;
+        case 'daily':
+          effectiveTotalBudget = totalBudgetEntry.amount * new Date(now.getFullYear(), now.getMonth() + 1, 0).getDate();
+          break;
+        default: // monthly
+          effectiveTotalBudget = totalBudgetEntry.amount;
+      }
+    }
+
+    // Calculate section utilization
+    const sectionUtilization = {};
+    budgets.forEach(budget => {
+      if (budget.section !== 'total') {
+        let effectiveBudget = 0;
+        
+        // Convert category budget to monthly equivalent
+        switch (budget.period) {
+          case 'yearly':
+            effectiveBudget = budget.amount / 12;
+            break;
+          case 'daily':
+            effectiveBudget = budget.amount * new Date(now.getFullYear(), now.getMonth() + 1, 0).getDate();
+            break;
+          default: // monthly
+            effectiveBudget = budget.amount;
+        }
+        
+        const spent = sectionTotals[budget.section] || 0;
+        sectionUtilization[budget.section] = {
+          budget: effectiveBudget,
+          spent: spent,
+          utilization: effectiveBudget > 0 ? (spent / effectiveBudget) * 100 : 0
+        };
+      }
+    });
+
+    res.json({
+      transactions,
+      sectionTotals,
+      totalSpent,
+      startDate: startOfMonth,
+      endDate: endOfMonth,
+      totalBudget: {
+        amount: effectiveTotalBudget,
+        spent: totalSpent,
+        utilization: effectiveTotalBudget > 0 ? (totalSpent / effectiveTotalBudget) * 100 : 0,
+        period: totalBudgetEntry?.period || 'monthly'
+      },
+      sectionUtilization
+    });
+  } catch (error) {
+    console.error('Error fetching current month transactions:', error);
+    res.status(500).json({ message: 'Error fetching transactions' });
   }
 });
 
