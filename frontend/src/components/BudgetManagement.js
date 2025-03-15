@@ -53,7 +53,8 @@ function BudgetManagement() {
   const [monthlyBudget, setMonthlyBudget] = useState('');
   const [yearlyBudget, setYearlyBudget] = useState('');
   const [budgetError, setBudgetError] = useState('');
-  const [isEditingBudget, setIsEditingBudget] = useState(true);
+  const [isEditingBudget, setIsEditingBudget] = useState(false);
+  const [virtualSavings, setVirtualSavings] = useState(null);
 
   const getDaysInMonth = () => {
     const now = new Date();
@@ -332,6 +333,25 @@ function BudgetManagement() {
         });
         setSectionUtilization(utilData);
 
+        // After fetching transactions, calculate and save virtual savings
+        if (monthlyTransactions && dailyBudget) {
+          const today = new Date().toISOString().split('T')[0];
+          const dailySpent = monthlyTransactions.totalSpent / getDaysInMonth();
+          const dailyBudgetAmount = getEffectiveDailyBudget();
+          const savedAmount = Math.max(0, dailyBudgetAmount - dailySpent);
+
+          if (savedAmount > 0) {
+            await axios.post('http://localhost:5000/api/virtual-savings', {
+              date: today,
+              amount: savedAmount,
+              dailyBudget: dailyBudgetAmount,
+              actualSpent: dailySpent
+            }, {
+              headers: { Authorization: `Bearer ${token}` }
+            });
+          }
+        }
+
         setLoading(false);
       } catch (error) {
         console.error('Error fetching data:', error);
@@ -341,6 +361,22 @@ function BudgetManagement() {
     };
 
     fetchData();
+  }, [monthlyTransactions, dailyBudget]);
+
+  useEffect(() => {
+    const fetchVirtualSavings = async () => {
+      try {
+        const token = localStorage.getItem('token');
+        const response = await axios.get('http://localhost:5000/api/virtual-savings/summary', {
+          headers: { Authorization: `Bearer ${token}` }
+        });
+        setVirtualSavings(response.data);
+      } catch (error) {
+        console.error('Error fetching virtual savings:', error);
+      }
+    };
+
+    fetchVirtualSavings();
   }, []);
 
   const handleSave = async () => {
@@ -756,6 +792,59 @@ function BudgetManagement() {
                 }}
               />
             </Box>
+            {/* Add Virtual Savings Section */}
+            <Box sx={{ mt: 2, pt: 2, borderTop: '1px solid rgba(255, 255, 255, 0.1)' }}>
+              <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 1 }}>
+                <Typography variant="body2" sx={{ color: 'rgba(255, 255, 255, 0.7)' }}>
+                  Today's Savings
+                </Typography>
+                <Typography 
+                  variant="body2" 
+                  sx={{ 
+                    color: '#22c55e',
+                    fontWeight: 600,
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: 0.5
+                  }}
+                >
+                  <SavingsIcon fontSize="small" />
+                  ₹{monthlyTransactions ? Math.max(0, getEffectiveDailyBudget() - (monthlyTransactions.totalSpent / getDaysInMonth())).toFixed(2) : '0.00'}
+                </Typography>
+              </Box>
+              <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                <Typography variant="body2" sx={{ color: 'rgba(255, 255, 255, 0.7)' }}>
+                  Total Virtual Savings
+                </Typography>
+                <Typography 
+                  variant="body2" 
+                  sx={{ 
+                    color: '#22c55e',
+                    fontWeight: 600
+                  }}
+                >
+                  ₹{virtualSavings ? virtualSavings.totalSavings.toFixed(2) : '0.00'}
+                </Typography>
+              </Box>
+              <Box sx={{ mt: 1 }}>
+                <Button
+                  fullWidth
+                  variant="outlined"
+                  size="small"
+                  onClick={() => navigate('/savings-target')}
+                  sx={{
+                    color: '#22c55e',
+                    borderColor: 'rgba(34, 197, 94, 0.5)',
+                    '&:hover': {
+                      borderColor: '#22c55e',
+                      bgcolor: 'rgba(34, 197, 94, 0.1)'
+                    }
+                  }}
+                >
+                  View Savings in Dashboard
+                </Button>
+              </Box>
+            </Box>
           </Box>
         </Grid>
 
@@ -797,6 +886,41 @@ function BudgetManagement() {
                 }}
               />
             </Box>
+            {/* Add Monthly Savings Section */}
+            <Box sx={{ mt: 2, pt: 2, borderTop: '1px solid rgba(255, 255, 255, 0.1)' }}>
+              <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 1 }}>
+                <Typography variant="body2" sx={{ color: 'rgba(255, 255, 255, 0.7)' }}>
+                  Month's Savings
+                </Typography>
+                <Typography 
+                  variant="body2" 
+                  sx={{ 
+                    color: '#22c55e',
+                    fontWeight: 600,
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: 0.5
+                  }}
+                >
+                  <SavingsIcon fontSize="small" />
+                  ₹{monthlyTransactions ? Math.max(0, getEffectiveMonthlyBudget() - monthlyTransactions.totalSpent).toFixed(2) : '0.00'}
+                </Typography>
+              </Box>
+              <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                <Typography variant="body2" sx={{ color: 'rgba(255, 255, 255, 0.7)' }}>
+                  Average Daily Savings
+                </Typography>
+                <Typography 
+                  variant="body2" 
+                  sx={{ 
+                    color: '#22c55e',
+                    fontWeight: 600
+                  }}
+                >
+                  ₹{virtualSavings ? (virtualSavings.dailyAverage || 0).toFixed(2) : '0.00'}
+                </Typography>
+              </Box>
+            </Box>
           </Box>
         </Grid>
 
@@ -837,6 +961,41 @@ function BudgetManagement() {
                   }
                 }}
               />
+            </Box>
+            {/* Add Yearly Savings Section */}
+            <Box sx={{ mt: 2, pt: 2, borderTop: '1px solid rgba(255, 255, 255, 0.1)' }}>
+              <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 1 }}>
+                <Typography variant="body2" sx={{ color: 'rgba(255, 255, 255, 0.7)' }}>
+                  Projected Yearly Savings
+                </Typography>
+                <Typography 
+                  variant="body2" 
+                  sx={{ 
+                    color: '#22c55e',
+                    fontWeight: 600,
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: 0.5
+                  }}
+                >
+                  <SavingsIcon fontSize="small" />
+                  ₹{monthlyTransactions ? (Math.max(0, getEffectiveMonthlyBudget() - monthlyTransactions.totalSpent) * 12).toFixed(2) : '0.00'}
+                </Typography>
+              </Box>
+              <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                <Typography variant="body2" sx={{ color: 'rgba(255, 255, 255, 0.7)' }}>
+                  Year-to-Date Savings
+                </Typography>
+                <Typography 
+                  variant="body2" 
+                  sx={{ 
+                    color: '#22c55e',
+                    fontWeight: 600
+                  }}
+                >
+                  ₹{virtualSavings ? (virtualSavings.totalSavings * (12 / new Date().getMonth() + 1)).toFixed(2) : '0.00'}
+                </Typography>
+              </Box>
             </Box>
           </Box>
         </Grid>

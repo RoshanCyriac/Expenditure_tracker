@@ -10,6 +10,8 @@ const User = require('./models/User');
 const Section = require('./models/Section');
 const Expense = require('./models/Expense');
 const Budget = require('./models/Budget');
+const VirtualSavings = require('./models/VirtualSavings');
+const SavingsTarget = require('./models/SavingsTarget');
 const sequelize = require('./config/database');
 const jwt = require('jsonwebtoken');
 
@@ -495,6 +497,111 @@ app.get('/api/transactions/current-month', passport.authenticate('jwt', { sessio
   } catch (error) {
     console.error('Error fetching current month transactions:', error);
     res.status(500).json({ message: 'Error fetching transactions' });
+  }
+});
+
+// Virtual Savings Endpoints
+app.post('/api/virtual-savings', passport.authenticate('jwt', { session: false }), async (req, res) => {
+  try {
+    const { date, amount, dailyBudget, actualSpent } = req.body;
+    
+    // Create or update virtual savings for the day
+    const [savings, created] = await VirtualSavings.findOrCreate({
+      where: {
+        userId: req.user.id,
+        date: date
+      },
+      defaults: {
+        amount,
+        dailyBudget,
+        actualSpent
+      }
+    });
+
+    if (!created) {
+      await savings.update({
+        amount,
+        dailyBudget,
+        actualSpent
+      });
+    }
+
+    res.json(savings);
+  } catch (error) {
+    console.error('Error saving virtual savings:', error);
+    res.status(500).json({ error: 'Failed to save virtual savings' });
+  }
+});
+
+app.get('/api/virtual-savings/summary', passport.authenticate('jwt', { session: false }), async (req, res) => {
+  try {
+    const startDate = new Date();
+    startDate.setDate(1); // First day of current month
+    
+    const endDate = new Date();
+    
+    const savings = await VirtualSavings.findAll({
+      where: {
+        userId: req.user.id,
+        date: {
+          [Op.between]: [startDate, endDate]
+        }
+      }
+    });
+
+    const totalSavings = savings.reduce((sum, record) => sum + parseFloat(record.amount), 0);
+    const dailyAverage = totalSavings / savings.length;
+
+    res.json({
+      totalSavings,
+      dailyAverage,
+      savingsHistory: savings
+    });
+  } catch (error) {
+    console.error('Error fetching virtual savings:', error);
+    res.status(500).json({ error: 'Failed to fetch virtual savings' });
+  }
+});
+
+// Savings Target Routes
+app.get('/api/savings-target', passport.authenticate('jwt', { session: false }), async (req, res) => {
+  try {
+    const target = await SavingsTarget.findOne({
+      where: { userId: req.user.id }
+    });
+    res.json(target);
+  } catch (error) {
+    console.error('Error fetching savings target:', error);
+    res.status(500).json({ message: 'Error fetching savings target' });
+  }
+});
+
+app.post('/api/savings-target', passport.authenticate('jwt', { session: false }), async (req, res) => {
+  try {
+    const { amount, period } = req.body;
+    
+    // Validate input
+    if (!amount || !period) {
+      return res.status(400).json({ message: 'Amount and period are required' });
+    }
+    
+    if (!['daily', 'monthly', 'yearly'].includes(period)) {
+      return res.status(400).json({ message: 'Invalid period' });
+    }
+
+    // Update or create target
+    const [target, created] = await SavingsTarget.upsert({
+      userId: req.user.id,
+      amount,
+      period
+    }, {
+      where: { userId: req.user.id }
+    });
+
+    res.json(target);
+  } catch (error) {
+    console.error('Error saving savings target:', error);
+    res.status(500).json({ message: 'Error saving savings target' });
   }
 });
 
