@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   Container,
   Paper,
@@ -23,7 +23,14 @@ const Login = () => {
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
   const navigate = useNavigate();
-  const { login } = useAuth();
+  const { login, isAuthenticated } = useAuth();
+
+  // Redirect if already authenticated
+  useEffect(() => {
+    if (isAuthenticated) {
+      navigate('/');
+    }
+  }, [isAuthenticated, navigate]);
 
   const handleLogin = async (e) => {
     e.preventDefault();
@@ -36,14 +43,16 @@ const Login = () => {
         password
       });
       
-      login(response.data.token, response.data.user);
-      navigate('/dashboard');
+      login(response.data);
+      navigate('/');
     } catch (error) {
-      const errorMessage = error.response?.data?.message || 'Login failed. Please try again.';
+      console.error('Login error:', error.response?.data);
+      const errorMessage = error.response?.data?.message || 
+        (error.response?.status === 401 ? 'Invalid username or password' : 'Login failed. Please try again.');
       setError(errorMessage);
       
       // Clear password field on incorrect password
-      if (error.response?.data?.type === 'INVALID_PASSWORD') {
+      if (error.response?.status === 401) {
         setPassword('');
       }
     } finally {

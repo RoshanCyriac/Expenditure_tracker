@@ -8,6 +8,17 @@ export const AuthProvider = ({ children }) => {
   const [user, setUser] = useState(null);
   const [loading, setLoading] = useState(true);
 
+  // Set up axios default authorization header
+  useEffect(() => {
+    const token = localStorage.getItem('token');
+    if (token) {
+      axios.defaults.headers.common['Authorization'] = `Bearer ${token}`;
+    }
+    return () => {
+      delete axios.defaults.headers.common['Authorization'];
+    };
+  }, []);
+
   useEffect(() => {
     const checkAuth = async () => {
       const token = localStorage.getItem('token');
@@ -18,11 +29,17 @@ export const AuthProvider = ({ children }) => {
           });
           setUser(response.data.user);
           setIsAuthenticated(true);
+          axios.defaults.headers.common['Authorization'] = `Bearer ${token}`;
         } catch (error) {
+          console.error('Auth check failed:', error);
           localStorage.removeItem('token');
+          delete axios.defaults.headers.common['Authorization'];
           setIsAuthenticated(false);
           setUser(null);
         }
+      } else {
+        setIsAuthenticated(false);
+        setUser(null);
       }
       setLoading(false);
     };
@@ -30,14 +47,17 @@ export const AuthProvider = ({ children }) => {
     checkAuth();
   }, []);
 
-  const login = (token, userData) => {
+  const login = (data) => {
+    const { token, user } = data;
     localStorage.setItem('token', token);
+    axios.defaults.headers.common['Authorization'] = `Bearer ${token}`;
     setIsAuthenticated(true);
-    setUser(userData);
+    setUser(user);
   };
 
   const logout = () => {
     localStorage.removeItem('token');
+    delete axios.defaults.headers.common['Authorization'];
     setIsAuthenticated(false);
     setUser(null);
   };

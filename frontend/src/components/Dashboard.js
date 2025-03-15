@@ -232,61 +232,61 @@ function Dashboard() {
             Budget Buddy
           </Typography>
           <Box sx={{ display: 'flex', gap: 1 }}>
-            <Button 
-              color="inherit" 
-              onClick={handleCategoryClick}
-              sx={{ 
+          <Button 
+            color="inherit" 
+            onClick={handleCategoryClick}
+            sx={{ 
                 color: 'rgba(255, 255, 255, 0.8)',
                 px: 2,
                 borderRadius: 2,
                 textTransform: 'none',
                 fontSize: '0.95rem',
-                '&:hover': {
+              '&:hover': {
                   backgroundColor: 'rgba(139, 92, 246, 0.1)'
-                }
-              }}
-            >
+              }
+            }}
+          >
               Categories
-            </Button>
+          </Button>
             <Button 
               color="inherit"
-              sx={{ 
+                sx={{
                 color: 'rgba(255, 255, 255, 0.8)',
                 px: 2,
                 borderRadius: 2,
                 textTransform: 'none',
                 fontSize: '0.95rem',
-                '&:hover': {
+                  '&:hover': {
                   backgroundColor: 'rgba(139, 92, 246, 0.1)'
                 }
               }}
             >
               Profile
             </Button>
-            <Button 
+          <Button 
               variant="contained" 
               onClick={handleSignOut}
-              sx={{ 
+            sx={{ 
                 ml: 2,
                 bgcolor: '#8b5cf6',
-                color: 'white',
+              color: 'white',
                 borderRadius: 2,
                 textTransform: 'none',
                 fontSize: '0.95rem',
-                '&:hover': {
+              '&:hover': {
                   bgcolor: '#7c3aed',
                 },
                 transition: 'all 0.2s ease'
-              }}
-            >
+            }}
+          >
               Sign Out
-            </Button>
+          </Button>
           </Box>
         </Toolbar>
       </AppBar>
 
       <Box
-        sx={{
+            sx={{ 
           background: 'linear-gradient(135deg, #1e1e1e 0%, #2d2d2d 100%)',
           minHeight: '100vh',
           display: 'flex',
@@ -305,29 +305,175 @@ function Dashboard() {
             gap: { xs: 4, md: 8 },
             alignItems: { md: 'center' },
             justifyContent: 'space-between',
-            mb: { xs: 4, md: 6 }
+            mb: { xs: 4, md: 6 },
+            position: 'relative',
+            '&::before': {
+              content: '""',
+              position: 'absolute',
+              top: -40,
+              left: -80,
+              width: 200,
+              height: 200,
+              background: 'radial-gradient(circle, rgba(139, 92, 246, 0.15) 0%, rgba(139, 92, 246, 0) 70%)',
+              borderRadius: '50%',
+              pointerEvents: 'none',
+              zIndex: 0
+            }
           }}
         >
-          <Box>
-            <Typography 
-              variant="h3" 
-              color="white" 
-              sx={{ 
-                fontWeight: 800,
-                fontSize: { xs: '1.8rem', sm: '2.2rem', md: '2.5rem' },
-                mb: 2,
-                letterSpacing: '-0.5px'
-              }}
-            >
-              Welcome back, {user?.username?.toUpperCase()}
-            </Typography>
+          <Box sx={{ position: 'relative', zIndex: 1 }}>
+            <Box sx={{ mb: 3 }}>
+              <Typography 
+                variant="h6" 
+                sx={{ 
+                  color: '#8b5cf6',
+                  fontWeight: 600,
+                  mb: 1,
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: 1,
+                  fontSize: { xs: '1rem', md: '1.1rem' }
+                }}
+              >
+                <Box 
+                  component="span" 
+                  sx={{ 
+                    width: 8, 
+                    height: 8, 
+                    borderRadius: '50%', 
+                    bgcolor: '#8b5cf6',
+                    animation: 'pulse 2s infinite'
+                  }} 
+                />
+                Dashboard Overview
+              </Typography>
+              <Typography 
+                variant="h3" 
+                sx={{ 
+                  fontWeight: 800,
+                  fontSize: { xs: '2rem', sm: '2.5rem', md: '2.8rem' },
+                  letterSpacing: '-0.5px',
+                  lineHeight: 1.2,
+                  mb: 2,
+              color: 'white',
+                  position: 'relative'
+                }}
+              >
+                <Box component="span" sx={{
+                  display: 'block',
+                  position: 'relative',
+                  '&::before': {
+                    content: '""',
+                    position: 'absolute',
+                    left: -20,
+                    top: '50%',
+                    width: 4,
+                    height: '60%',
+                    bgcolor: '#8b5cf6',
+                    transform: 'translateY(-50%)',
+                    borderRadius: 4
+                  }
+                }}>
+                  Ready to track expenses?
+                </Box>
+                <Box 
+                  component="span" 
+                  sx={{ 
+                    color: '#8b5cf6',
+                    position: 'relative',
+                    display: 'block',
+                    mt: 2,
+                    pl: 3,
+                    '&::before': {
+                      content: '""',
+                      position: 'absolute',
+                      left: 0,
+                      top: '50%',
+                      width: 12,
+                      height: 2,
+                      bgcolor: '#8b5cf6',
+                      transform: 'translateY(-50%)',
+                      borderRadius: 4
+                    },
+                    animation: 'slideIn 0.6s ease-out',
+                    '@keyframes slideIn': {
+                      from: {
+                        opacity: 0,
+                        transform: 'translateX(-20px)'
+                      },
+                      to: {
+                        opacity: 1,
+                        transform: 'translateX(0)'
+                      }
+                    }
+                  }}
+                >
+                  {user?.username?.toUpperCase()}
+                </Box>
+              </Typography>
+            </Box>
+            <Box sx={{ 
+              display: 'flex', 
+              gap: 3, 
+              alignItems: 'center',
+              mb: 3
+            }}>
+              <Box sx={{ 
+                display: 'flex', 
+                alignItems: 'center', 
+                gap: 1.5,
+                py: 1,
+                px: 2,
+                bgcolor: 'rgba(139, 92, 246, 0.1)',
+                borderRadius: 2,
+                border: '1px solid rgba(139, 92, 246, 0.2)'
+              }}>
+                <Box 
+                  sx={{ 
+                    width: 8,
+                    height: 8,
+                    borderRadius: '50%',
+                    bgcolor: '#22c55e'
+                  }}
+                />
+                <Typography 
+                  sx={{ 
+                    color: 'rgba(255, 255, 255, 0.9)',
+                    fontSize: '0.9rem',
+                    fontWeight: 500
+                  }}
+                >
+                  Active Now
+                </Typography>
+              </Box>
+              <Typography 
+                sx={{ 
+                  color: 'rgba(255, 255, 255, 0.5)',
+                  fontSize: '0.9rem'
+                }}
+              >
+                Last login: {new Date().toLocaleDateString()}
+              </Typography>
+            </Box>
             <Typography 
               variant="body1" 
               sx={{ 
                 color: 'rgba(255, 255, 255, 0.7)',
                 fontSize: { xs: '1rem', md: '1.1rem' },
                 maxWidth: '600px',
-                lineHeight: 1.6
+                lineHeight: 1.6,
+                position: 'relative',
+                pl: 4,
+                '&::before': {
+                  content: '""',
+                  position: 'absolute',
+                  left: 0,
+                  top: 12,
+                  width: 20,
+                  height: 2,
+                  bgcolor: '#8b5cf6',
+                  borderRadius: 1
+                }
               }}
             >
               Track your expenses, manage your budget, and achieve your financial goals with ease.
@@ -337,66 +483,86 @@ function Dashboard() {
           <Box sx={{ 
             display: 'flex', 
             gap: 2,
-            flexWrap: 'wrap'
+            flexWrap: 'wrap',
+            position: 'relative',
+            zIndex: 1
           }}>
-            <Button
+          <Button 
               variant="contained"
               size="large"
               onClick={() => setExpenseDialogOpen(true)}
-              sx={{
+            sx={{ 
                 bgcolor: '#8b5cf6',
-                color: 'white',
+              color: 'white',
                 fontSize: '0.95rem',
-                py: 1.5,
-                px: 3,
+                py: 1.8,
+                px: 4,
                 borderRadius: 2,
                 textTransform: 'none',
                 fontWeight: 600,
-                '&:hover': {
+                position: 'relative',
+                overflow: 'hidden',
+                '&::before': {
+                  content: '""',
+                  position: 'absolute',
+                  top: 0,
+                  left: 0,
+                  width: '100%',
+                  height: '100%',
+                  background: 'linear-gradient(45deg, transparent 0%, rgba(255, 255, 255, 0.1) 50%, transparent 100%)',
+                  transform: 'translateX(-100%)',
+                  transition: 'transform 0.6s'
+                },
+              '&:hover': {
                   bgcolor: '#7c3aed',
                   transform: 'translateY(-2px)',
+                  '&::before': {
+                    transform: 'translateX(100%)'
+              }
                 },
-                transition: 'all 0.2s ease'
-              }}
-            >
+                transition: 'all 0.3s ease'
+            }}
+          >
               Add Expense
-            </Button>
-            <Button
-              variant="outlined"
+          </Button>
+          <Button 
+            variant="outlined" 
               size="large"
               onClick={() => setSectionDialogOpen(true)}
-              sx={{ 
-                color: 'white', 
+            sx={{ 
+              color: 'white',
                 borderColor: 'rgba(255, 255, 255, 0.5)',
                 fontSize: '0.95rem',
-                py: 1.5,
-                px: 3,
+                py: 1.8,
+                px: 4,
                 borderRadius: 2,
                 textTransform: 'none',
                 fontWeight: 600,
-                '&:hover': {
-                  borderColor: 'white',
-                  bgcolor: 'rgba(255, 255, 255, 0.05)',
+                backdropFilter: 'blur(10px)',
+                bgcolor: 'rgba(255, 255, 255, 0.05)',
+              '&:hover': {
+                borderColor: 'white',
+                  bgcolor: 'rgba(255, 255, 255, 0.1)',
                   transform: 'translateY(-2px)',
                 },
-                transition: 'all 0.2s ease'
+                transition: 'all 0.3s ease'
               }}
             >
               Add Section
-            </Button>
+          </Button>
           </Box>
         </Box>
 
         {/* Recent Expenses Table */}
-        <Box 
-          sx={{ 
+      <Box
+        sx={{
             bgcolor: '#262626',
             borderRadius: 3,
             p: { xs: 2, md: 3 },
             boxShadow: '0 4px 20px rgba(0, 0, 0, 0.2)',
             flex: 1,
             border: '1px solid rgba(255, 255, 255, 0.1)',
-            display: 'flex',
+          display: 'flex',
             flexDirection: 'column'
           }}
         >
@@ -406,7 +572,7 @@ function Dashboard() {
             alignItems: 'center',
             mb: 3
           }}>
-            <Typography 
+        <Typography 
               variant="h6" 
               sx={{ 
                 color: 'white',
@@ -415,7 +581,7 @@ function Dashboard() {
               }}
             >
               Recent Expenses
-            </Typography>
+        </Typography>
             <Box sx={{
               display: 'flex',
               alignItems: 'center',
@@ -425,15 +591,15 @@ function Dashboard() {
               py: 0.75,
               px: 2
             }}>
-              <Typography 
-                sx={{ 
+        <Typography 
+          sx={{ 
                   color: 'white',
                   fontSize: '0.95rem',
                   fontWeight: 500
                 }}
               >
                 {recentExpenses.length}
-              </Typography>
+        </Typography>
               <Typography 
                 sx={{ 
                   color: 'rgba(255, 255, 255, 0.5)',
@@ -568,10 +734,10 @@ function Dashboard() {
                               });
                               setEditExpenseDialogOpen(true);
                             }}
-                            sx={{
+            sx={{
                               color: '#8b5cf6',
                               p: 1,
-                              '&:hover': {
+              '&:hover': {
                                 bgcolor: 'rgba(139, 92, 246, 0.1)',
                               }
                             }}
@@ -584,10 +750,10 @@ function Dashboard() {
                               setExpenseToDelete(expense);
                               setDeleteDialogOpen(true);
                             }}
-                            sx={{
+            sx={{ 
                               color: '#ef4444',
                               p: 1,
-                              '&:hover': {
+              '&:hover': {
                                 bgcolor: 'rgba(239, 68, 68, 0.1)',
                               }
                             }}

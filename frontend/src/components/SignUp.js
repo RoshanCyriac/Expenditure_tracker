@@ -14,6 +14,7 @@ import {
 import { Visibility, VisibilityOff } from '@mui/icons-material';
 import { useNavigate } from 'react-router-dom';
 import axios from 'axios';
+import { useAuth } from '../context/AuthContext';
 
 const API_URL = process.env.REACT_APP_API_URL || 'http://localhost:5000';
 
@@ -27,6 +28,7 @@ const SignUp = () => {
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
   const navigate = useNavigate();
+  const { login } = useAuth();
 
   const handleSignUp = async (e) => {
     e.preventDefault();
@@ -40,15 +42,17 @@ const SignUp = () => {
     setLoading(true);
 
     try {
-      const response = await axios.post(`${API_URL}/api/auth/signup`, {
+      const response = await axios.post(`${API_URL}/api/auth/register`, {
         username,
         email,
         password
       });
-      localStorage.setItem('token', response.data.token);
-      navigate('/dashboard');
+      login(response.data);
+      navigate('/');
     } catch (error) {
-      const errorMessage = error.response?.data?.message || 'Sign up failed. Please try again.';
+      console.error('Signup error:', error.response?.data);
+      const errorMessage = error.response?.data?.message || 
+        (error.response?.status === 400 ? 'Please check your input and try again.' : 'Sign up failed. Please try again.');
       setError(errorMessage);
     } finally {
       setLoading(false);

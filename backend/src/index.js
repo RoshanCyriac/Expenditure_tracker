@@ -316,6 +316,40 @@ app.put('/api/expenses/:id', passport.authenticate('jwt', { session: false }), a
   }
 });
 
+// Get section transactions
+app.get('/api/sections/:section/transactions', passport.authenticate('jwt', { session: false }), async (req, res) => {
+  try {
+    const { section } = req.params;
+    const userId = req.user.id;
+
+    // Get all transactions for this section
+    const transactions = await Expense.findAll({
+      where: {
+        userId: userId,
+        section: section
+      },
+      order: [['createdAt', 'DESC']]
+    });
+
+    // Calculate total
+    const total = transactions.reduce((sum, transaction) => sum + parseFloat(transaction.amount), 0);
+
+    // Calculate average per day
+    const dates = transactions.map(t => t.createdAt.toDateString());
+    const uniqueDays = new Set(dates).size;
+    const averagePerDay = uniqueDays > 0 ? total / uniqueDays : 0;
+
+    res.json({
+      transactions,
+      total,
+      averagePerDay
+    });
+  } catch (error) {
+    console.error('Error fetching section transactions:', error);
+    res.status(500).json({ message: 'Error fetching section transactions' });
+  }
+});
+
 // Database sync and server start
 sequelize.sync().then(() => {
   app.listen(PORT, () => {
