@@ -9,7 +9,7 @@ A modern, full-stack expense tracking application with authentication and real-t
 - User login with username/password
 - Google OAuth integration
 - JWT-based authentication
-- Persistent session managemen
+- Persistent session management
 
 ### Expense Tracking
 - Create and manage expense categories
