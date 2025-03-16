@@ -15,6 +15,16 @@ const SavingsTarget = require('./models/SavingsTarget');
 const sequelize = require('./config/database');
 const jwt = require('jsonwebtoken');
 
+// Import routes
+const authRoutes = require('./routes/auth');
+const expenseRoutes = require('./routes/expenses');
+const sectionRoutes = require('./routes/sections');
+const budgetRoutes = require('./routes/budgets');
+const virtualSavingsRoutes = require('./routes/virtualSavings');
+const savingsTargetRoutes = require('./routes/savingsTarget');
+const fixedCostsRoutes = require('./routes/fixedCosts');
+const userRoutes = require('./routes/user');
+
 const app = express();
 const PORT = process.env.PORT || 5000;
 
@@ -604,6 +614,16 @@ app.post('/api/savings-target', passport.authenticate('jwt', { session: false })
     res.status(500).json({ message: 'Error saving savings target' });
   }
 });
+
+// Use routes
+app.use('/api/auth', authRoutes);
+app.use('/api/expenses', expenseRoutes);
+app.use('/api/sections', sectionRoutes);
+app.use('/api/budgets', budgetRoutes);
+app.use('/api/virtual-savings', virtualSavingsRoutes);
+app.use('/api/savings-target', savingsTargetRoutes);
+app.use('/api/fixed-costs', fixedCostsRoutes);
+app.use('/api/user', userRoutes);
 
 // Database sync and server start
 sequelize.sync().then(() => {

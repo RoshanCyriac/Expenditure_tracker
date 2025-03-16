@@ -1,10 +1,10 @@
 const express = require('express');
 const router = express.Router();
+const passport = require('passport');
 const SavingsTarget = require('../models/SavingsTarget');
-const auth = require('../middleware/auth');
 
 // Get user's savings target
-router.get('/', auth, async (req, res) => {
+router.get('/', passport.authenticate('jwt', { session: false }), async (req, res) => {
   try {
     const target = await SavingsTarget.findOne({
       where: { userId: req.user.id }
@@ -17,7 +17,7 @@ router.get('/', auth, async (req, res) => {
 });
 
 // Create or update savings target
-router.post('/', auth, async (req, res) => {
+router.post('/', passport.authenticate('jwt', { session: false }), async (req, res) => {
   try {
     const { amount, period } = req.body;
     

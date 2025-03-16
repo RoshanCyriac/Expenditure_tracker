@@ -17,7 +17,15 @@ import {
   FormControl,
   InputLabel,
   Select,
-  MenuItem
+  MenuItem,
+  Dialog,
+  DialogTitle,
+  DialogContent,
+  DialogActions,
+  List,
+  ListItem,
+  ListItemText,
+  ListItemSecondaryAction
 } from '@mui/material';
 import ArrowBackIcon from '@mui/icons-material/ArrowBack';
 import SavingsIcon from '@mui/icons-material/Savings';
@@ -25,6 +33,7 @@ import WarningIcon from '@mui/icons-material/Warning';
 import CalendarMonthIcon from '@mui/icons-material/CalendarMonth';
 import CalendarTodayIcon from '@mui/icons-material/CalendarToday';
 import TodayIcon from '@mui/icons-material/Today';
+import AddIcon from '@mui/icons-material/Add';
 import { useNavigate } from 'react-router-dom';
 import axios from 'axios';
 import DeleteIcon from '@mui/icons-material/Delete';
@@ -55,6 +64,13 @@ function BudgetManagement() {
   const [budgetError, setBudgetError] = useState('');
   const [isEditingBudget, setIsEditingBudget] = useState(false);
   const [virtualSavings, setVirtualSavings] = useState(null);
+  
+  // Fixed costs state
+  const [fixedCosts, setFixedCosts] = useState([]);
+  const [fixedCostDialogOpen, setFixedCostDialogOpen] = useState(false);
+  const [newFixedCost, setNewFixedCost] = useState({ name: '', amount: '' });
+  const [editingFixedCost, setEditingFixedCost] = useState(null);
+  const [totalFixedCosts, setTotalFixedCosts] = useState(0);
 
   const getDaysInMonth = () => {
     const now = new Date();
@@ -68,26 +84,31 @@ function BudgetManagement() {
 
   // Get effective daily budget based on the selected period
   const getEffectiveDailyBudget = () => {
-    if (dailyBudget) return parseFloat(dailyBudget) || 0;
-    if (monthlyBudget) return (parseFloat(monthlyBudget) || 0) / getDaysInMonth();
-    if (yearlyBudget) return (parseFloat(yearlyBudget) || 0) / getDaysInYear();
-    return 0;
+    const fixedCostsPerDay = totalFixedCosts / getDaysInMonth();
+    let budget = 0;
+    if (dailyBudget) budget = parseFloat(dailyBudget) || 0;
+    else if (monthlyBudget) budget = (parseFloat(monthlyBudget) || 0) / getDaysInMonth();
+    else if (yearlyBudget) budget = (parseFloat(yearlyBudget) || 0) / getDaysInYear();
+    return Math.max(0, budget - fixedCostsPerDay);
   };
 
   // Get effective monthly budget based on the selected period
   const getEffectiveMonthlyBudget = () => {
-    if (monthlyBudget) return parseFloat(monthlyBudget) || 0;
-    if (dailyBudget) return (parseFloat(dailyBudget) || 0) * getDaysInMonth();
-    if (yearlyBudget) return (parseFloat(yearlyBudget) || 0) / 12;
-    return 0;
+    let budget = 0;
+    if (monthlyBudget) budget = parseFloat(monthlyBudget) || 0;
+    else if (dailyBudget) budget = (parseFloat(dailyBudget) || 0) * getDaysInMonth();
+    else if (yearlyBudget) budget = (parseFloat(yearlyBudget) || 0) / 12;
+    return Math.max(0, budget - totalFixedCosts);
   };
 
   // Get effective yearly budget based on the selected period
   const getEffectiveYearlyBudget = () => {
-    if (yearlyBudget) return parseFloat(yearlyBudget) || 0;
-    if (monthlyBudget) return (parseFloat(monthlyBudget) || 0) * 12;
-    if (dailyBudget) return (parseFloat(dailyBudget) || 0) * getDaysInYear();
-    return 0;
+    const fixedCostsPerYear = totalFixedCosts * 12;
+    let budget = 0;
+    if (yearlyBudget) budget = parseFloat(yearlyBudget) || 0;
+    else if (monthlyBudget) budget = (parseFloat(monthlyBudget) || 0) * 12;
+    else if (dailyBudget) budget = (parseFloat(dailyBudget) || 0) * getDaysInYear();
+    return Math.max(0, budget - fixedCostsPerYear);
   };
 
   // Get effective category budget based on the period
@@ -271,6 +292,104 @@ function BudgetManagement() {
       setCategoryAmount('');
     }
   };
+
+  // Fixed costs handlers
+  const handleAddFixedCost = async () => {
+    try {
+      const token = localStorage.getItem('token');
+      const response = await axios.post('http://localhost:5000/api/fixed-costs', newFixedCost, {
+        headers: { Authorization: `Bearer ${token}` }
+      });
+      
+      setFixedCosts([...fixedCosts, response.data]);
+      setTotalFixedCosts(totalFixedCosts + parseFloat(newFixedCost.amount));
+      setNewFixedCost({ name: '', amount: '' });
+      setFixedCostDialogOpen(false);
+      setSuccess('Fixed cost added successfully');
+      
+      // Update budget calculations
+      updateBudgetWithFixedCosts([...fixedCosts, response.data]);
+    } catch (error) {
+      setError('Failed to add fixed cost');
+    }
+  };
+
+  const handleEditFixedCost = async () => {
+    try {
+      const token = localStorage.getItem('token');
+      await axios.put(`http://localhost:5000/api/fixed-costs/${editingFixedCost.id}`, newFixedCost, {
+        headers: { Authorization: `Bearer ${token}` }
+      });
+      
+      const updatedCosts = fixedCosts.map(cost => 
+        cost.id === editingFixedCost.id ? { ...cost, ...newFixedCost } : cost
+      );
+      
+      setFixedCosts(updatedCosts);
+      setTotalFixedCosts(updatedCosts.reduce((sum, cost) => sum + parseFloat(cost.amount), 0));
+      setNewFixedCost({ name: '', amount: '' });
+      setEditingFixedCost(null);
+      setFixedCostDialogOpen(false);
+      setSuccess('Fixed cost updated successfully');
+      
+      // Update budget calculations
+      updateBudgetWithFixedCosts(updatedCosts);
+    } catch (error) {
+      setError('Failed to update fixed cost');
+    }
+  };
+
+  const handleDeleteFixedCost = async (id) => {
+    try {
+      const token = localStorage.getItem('token');
+      await axios.delete(`http://localhost:5000/api/fixed-costs/${id}`, {
+        headers: { Authorization: `Bearer ${token}` }
+      });
+      
+      const updatedCosts = fixedCosts.filter(cost => cost.id !== id);
+      setFixedCosts(updatedCosts);
+      setTotalFixedCosts(updatedCosts.reduce((sum, cost) => sum + parseFloat(cost.amount), 0));
+      setSuccess('Fixed cost deleted successfully');
+      
+      // Update budget calculations
+      updateBudgetWithFixedCosts(updatedCosts);
+    } catch (error) {
+      setError('Failed to delete fixed cost');
+    }
+  };
+
+  const updateBudgetWithFixedCosts = (costs) => {
+    const totalFixed = costs.reduce((sum, cost) => sum + parseFloat(cost.amount), 0);
+    const effectiveMonthly = getEffectiveMonthlyBudget();
+    
+    // Update budget utilization considering fixed costs
+    if (monthlyTransactions?.totalSpent) {
+      setBudgetUtilization(((monthlyTransactions.totalSpent + totalFixed) / effectiveMonthly) * 100);
+    }
+  };
+
+  // Fetch fixed costs
+  useEffect(() => {
+    const fetchFixedCosts = async () => {
+      try {
+        const token = localStorage.getItem('token');
+        const response = await axios.get('http://localhost:5000/api/fixed-costs', {
+          headers: { Authorization: `Bearer ${token}` }
+        });
+        
+        setFixedCosts(response.data);
+        const total = response.data.reduce((sum, cost) => sum + parseFloat(cost.amount), 0);
+        setTotalFixedCosts(total);
+        
+        // Update budget calculations
+        updateBudgetWithFixedCosts(response.data);
+      } catch (error) {
+        console.error('Error fetching fixed costs:', error);
+      }
+    };
+
+    fetchFixedCosts();
+  }, []);
 
   useEffect(() => {
     const fetchData = async () => {
@@ -1045,6 +1164,266 @@ function BudgetManagement() {
     </Box>
   );
 
+  const renderFixedCostsSection = () => (
+    <Box sx={{ mt: 4 }}>
+      <Paper
+        sx={{
+          bgcolor: '#262626',
+          borderRadius: 3,
+          p: 3,
+          border: '1px solid rgba(255, 255, 255, 0.1)',
+        }}
+      >
+        <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 3 }}>
+          <Typography variant="h6" sx={{ color: 'white', fontWeight: 600 }}>
+            Fixed Monthly Costs
+          </Typography>
+          <Button
+            variant="outlined"
+            startIcon={<AddIcon />}
+            onClick={() => {
+              setNewFixedCost({ name: '', amount: '' });
+              setEditingFixedCost(null);
+              setFixedCostDialogOpen(true);
+            }}
+            sx={{
+              color: '#8b5cf6',
+              borderColor: 'rgba(139, 92, 246, 0.5)',
+              '&:hover': {
+                borderColor: '#8b5cf6',
+                bgcolor: 'rgba(139, 92, 246, 0.1)'
+              }
+            }}
+          >
+            Add Fixed Cost
+          </Button>
+        </Box>
+
+        {fixedCosts.length > 0 ? (
+          <>
+            <List>
+              {fixedCosts.map((cost) => (
+                <ListItem
+                  key={cost.id}
+                  sx={{
+                    bgcolor: 'rgba(255, 255, 255, 0.05)',
+                    borderRadius: 2,
+                    mb: 1,
+                    '&:hover': {
+                      bgcolor: 'rgba(255, 255, 255, 0.08)'
+                    }
+                  }}
+                >
+                  <ListItemText
+                    primary={
+                      <Typography sx={{ color: 'white' }}>
+                        {cost.name}
+                      </Typography>
+                    }
+                    secondary={
+                      <Typography sx={{ color: 'rgba(255, 255, 255, 0.7)' }}>
+                        ₹{parseFloat(cost.amount).toFixed(2)}
+                      </Typography>
+                    }
+                  />
+                  <ListItemSecondaryAction>
+                    <IconButton
+                      edge="end"
+                      onClick={() => {
+                        setNewFixedCost({ name: cost.name, amount: cost.amount });
+                        setEditingFixedCost(cost);
+                        setFixedCostDialogOpen(true);
+                      }}
+                      sx={{
+                        color: '#8b5cf6',
+                        mr: 1,
+                        '&:hover': {
+                          bgcolor: 'rgba(139, 92, 246, 0.1)'
+                        }
+                      }}
+                    >
+                      <EditIcon />
+                    </IconButton>
+                    <IconButton
+                      edge="end"
+                      onClick={() => handleDeleteFixedCost(cost.id)}
+                      sx={{
+                        color: '#ef4444',
+                        '&:hover': {
+                          bgcolor: 'rgba(239, 68, 68, 0.1)'
+                        }
+                      }}
+                    >
+                      <DeleteIcon />
+                    </IconButton>
+                  </ListItemSecondaryAction>
+                </ListItem>
+              ))}
+            </List>
+
+            <Box sx={{ 
+              mt: 3, 
+              pt: 3, 
+              borderTop: '1px solid rgba(255, 255, 255, 0.1)',
+              display: 'flex',
+              justifyContent: 'space-between',
+              alignItems: 'center'
+            }}>
+              <Typography sx={{ color: 'rgba(255, 255, 255, 0.7)' }}>
+                Total Fixed Costs:
+              </Typography>
+              <Typography sx={{ color: '#ef4444', fontWeight: 600, fontSize: '1.1rem' }}>
+                ₹{totalFixedCosts.toFixed(2)}
+              </Typography>
+            </Box>
+
+            <Box sx={{ mt: 2 }}>
+              <Typography variant="body2" sx={{ color: 'rgba(255, 255, 255, 0.5)' }}>
+                * Fixed costs are automatically deducted from your monthly budget
+              </Typography>
+            </Box>
+          </>
+        ) : (
+          <Box sx={{ 
+            p: 3, 
+            textAlign: 'center',
+            bgcolor: 'rgba(255, 255, 255, 0.02)',
+            borderRadius: 2,
+            border: '1px dashed rgba(255, 255, 255, 0.1)'
+          }}>
+            <Typography sx={{ color: 'rgba(255, 255, 255, 0.7)', mb: 1 }}>
+              No fixed costs added yet
+            </Typography>
+            <Typography variant="body2" sx={{ color: 'rgba(255, 255, 255, 0.5)' }}>
+              Add your recurring monthly expenses like rent, utilities, etc.
+            </Typography>
+          </Box>
+        )}
+      </Paper>
+    </Box>
+  );
+
+  // Fixed costs dialog
+  const renderFixedCostDialog = () => (
+    <Dialog
+      open={fixedCostDialogOpen}
+      onClose={() => {
+        setFixedCostDialogOpen(false);
+        setNewFixedCost({ name: '', amount: '' });
+        setEditingFixedCost(null);
+      }}
+      PaperProps={{
+        sx: {
+          borderRadius: 3,
+          bgcolor: '#262626',
+          minWidth: { xs: '90%', sm: '400px' }
+        }
+      }}
+    >
+      <DialogTitle sx={{ 
+        color: 'white',
+        borderBottom: '1px solid rgba(255, 255, 255, 0.1)',
+        py: 2.5
+      }}>
+        {editingFixedCost ? 'Edit Fixed Cost' : 'Add Fixed Cost'}
+      </DialogTitle>
+      <DialogContent sx={{ mt: 2, px: 3, py: 2 }}>
+        <TextField
+          autoFocus
+          fullWidth
+          label="Name"
+          value={newFixedCost.name}
+          onChange={(e) => setNewFixedCost({ ...newFixedCost, name: e.target.value })}
+          sx={{
+            mb: 2,
+            '& .MuiOutlinedInput-root': {
+              borderRadius: 2,
+              color: 'white',
+              '& fieldset': {
+                borderColor: 'rgba(255, 255, 255, 0.2)',
+              },
+              '&:hover fieldset': {
+                borderColor: 'rgba(255, 255, 255, 0.3)',
+              },
+              '&.Mui-focused fieldset': {
+                borderColor: '#8b5cf6',
+              }
+            },
+            '& .MuiInputLabel-root': {
+              color: 'rgba(255, 255, 255, 0.7)',
+              '&.Mui-focused': {
+                color: '#8b5cf6'
+              }
+            }
+          }}
+        />
+        <TextField
+          fullWidth
+          label="Amount"
+          type="number"
+          value={newFixedCost.amount}
+          onChange={(e) => setNewFixedCost({ ...newFixedCost, amount: e.target.value })}
+          InputProps={{
+            startAdornment: <Typography sx={{ mr: 1, color: 'rgba(255, 255, 255, 0.5)' }}>₹</Typography>
+          }}
+          sx={{
+            '& .MuiOutlinedInput-root': {
+              borderRadius: 2,
+              color: 'white',
+              '& fieldset': {
+                borderColor: 'rgba(255, 255, 255, 0.2)',
+              },
+              '&:hover fieldset': {
+                borderColor: 'rgba(255, 255, 255, 0.3)',
+              },
+              '&.Mui-focused fieldset': {
+                borderColor: '#8b5cf6',
+              }
+            },
+            '& .MuiInputLabel-root': {
+              color: 'rgba(255, 255, 255, 0.7)',
+              '&.Mui-focused': {
+                color: '#8b5cf6'
+              }
+            }
+          }}
+        />
+      </DialogContent>
+      <DialogActions sx={{ px: 3, py: 2, borderTop: '1px solid rgba(255, 255, 255, 0.1)' }}>
+        <Button
+          onClick={() => {
+            setFixedCostDialogOpen(false);
+            setNewFixedCost({ name: '', amount: '' });
+            setEditingFixedCost(null);
+          }}
+          sx={{ 
+            color: 'rgba(255, 255, 255, 0.7)',
+            '&:hover': {
+              bgcolor: 'rgba(255, 255, 255, 0.05)'
+            }
+          }}
+        >
+          Cancel
+        </Button>
+        <Button
+          variant="contained"
+          onClick={editingFixedCost ? handleEditFixedCost : handleAddFixedCost}
+          disabled={!newFixedCost.name || !newFixedCost.amount}
+          sx={{ 
+            bgcolor: '#8b5cf6',
+            color: 'white',
+            px: 3,
+            '&:hover': {
+              bgcolor: '#7c3aed'
+            }
+          }}
+        >
+          {editingFixedCost ? 'Save Changes' : 'Add Fixed Cost'}
+        </Button>
+      </DialogActions>
+    </Dialog>
+  );
+
   return (
     <Box sx={{ minHeight: '100vh', bgcolor: '#1e1e1e' }}>
       {/* Header */}
@@ -1112,6 +1491,9 @@ function BudgetManagement() {
                 renderBudgetSummaryView()
               )}
             </Paper>
+
+            {/* Fixed Costs Section */}
+            {renderFixedCostsSection()}
 
             {/* Category Budgets */}
             <Paper
@@ -1377,49 +1759,38 @@ function BudgetManagement() {
           </>
         )}
 
-        {/* Error Snackbar */}
-        <Snackbar 
-          open={!!error} 
-          autoHideDuration={6000} 
-          onClose={() => setError('')}
-          anchorOrigin={{ vertical: 'bottom', horizontal: 'center' }}
-        >
-          <Alert 
-            severity="error" 
-            onClose={() => setError('')}
-            sx={{ 
-              bgcolor: 'rgba(239, 68, 68, 0.1)',
-              color: 'white',
-              border: '1px solid rgba(239, 68, 68, 0.2)',
-              '& .MuiAlert-icon': {
-                color: '#ef4444'
-              }
-            }}
-          >
-            {error}
-          </Alert>
-        </Snackbar>
+        {/* Fixed Costs Dialog */}
+        {renderFixedCostDialog()}
 
         {/* Success Snackbar */}
-        <Snackbar 
-          open={!!success} 
-          autoHideDuration={3000} 
+        <Snackbar
+          open={!!success}
+          autoHideDuration={3000}
           onClose={() => setSuccess('')}
           anchorOrigin={{ vertical: 'bottom', horizontal: 'center' }}
         >
-          <Alert 
-            severity="success" 
+          <Alert
             onClose={() => setSuccess('')}
-            sx={{ 
-              bgcolor: 'rgba(34, 197, 94, 0.1)',
-              color: 'white',
-              border: '1px solid rgba(34, 197, 94, 0.2)',
-              '& .MuiAlert-icon': {
-                color: '#22c55e'
-              }
-            }}
+            severity="success"
+            sx={{ width: '100%' }}
           >
             {success}
+          </Alert>
+        </Snackbar>
+
+        {/* Error Snackbar */}
+        <Snackbar
+          open={!!error}
+          autoHideDuration={3000}
+          onClose={() => setError('')}
+          anchorOrigin={{ vertical: 'bottom', horizontal: 'center' }}
+        >
+          <Alert
+            onClose={() => setError('')}
+            severity="error"
+            sx={{ width: '100%' }}
+          >
+            {error}
           </Alert>
         </Snackbar>
       </Box>

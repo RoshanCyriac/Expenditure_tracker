@@ -363,22 +363,38 @@ function Dashboard() {
             Budget Buddy
           </Typography>
           <Box sx={{ display: 'flex', gap: 1 }}>
-          <Button 
-            color="inherit" 
-            onClick={handleCategoryClick}
-            sx={{ 
+            <Button 
+              color="inherit" 
+              onClick={handleCategoryClick}
+              sx={{ 
                 color: 'rgba(255, 255, 255, 0.8)',
                 px: 2,
                 borderRadius: 2,
                 textTransform: 'none',
                 fontSize: '0.95rem',
-              '&:hover': {
+                '&:hover': {
                   backgroundColor: 'rgba(139, 92, 246, 0.1)'
-              }
-            }}
-          >
+                }
+              }}
+            >
               Categories
-          </Button>
+            </Button>
+            <Button 
+              color="inherit"
+              onClick={() => navigate('/insights')}
+              sx={{ 
+                color: 'rgba(255, 255, 255, 0.8)',
+                px: 2,
+                borderRadius: 2,
+                textTransform: 'none',
+                fontSize: '0.95rem',
+                '&:hover': {
+                  backgroundColor: 'rgba(139, 92, 246, 0.1)'
+                }
+              }}
+            >
+              Insights
+            </Button>
             <Button 
               color="inherit"
                 sx={{
