@@ -28,7 +28,7 @@ services:
       - JWT_SECRET=your-secret-key
       - GOOGLE_CLIENT_ID=${GOOGLE_CLIENT_ID:-optional}
       - GOOGLE_CLIENT_SECRET=${GOOGLE_CLIENT_SECRET:-optional}
-      - NODE_OPTIONS=--max_old_space_size=1024
+      - NODE_OPTIONS=--max_old_space_size=2048
     networks:
       - app-network
     depends_on:
@@ -40,9 +40,9 @@ services:
     deploy:
       resources:
         limits:
-          memory: 512M
+          memory: 2048M
         reservations:
-          memory: 256M
+          memory: 1024M
 
   db:
     image: postgres:13-alpine
