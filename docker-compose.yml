@@ -35,6 +35,12 @@ services:
     volumes:
       - ./backend:/app:delegated
       - backend_node_modules:/app/node_modules
+    deploy:
+      resources:
+        limits:
+          memory: 512M
+        reservations:
+          memory: 256M
 
   db:
     image: postgres:13-alpine
