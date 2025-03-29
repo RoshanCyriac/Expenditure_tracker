@@ -39,12 +39,9 @@ function Insights() {
     // Set both dates to first of month for comparison
     currentDate.setDate(1);
     lastDate.setDate(1);
-    
-    // Add one month to lastDate to include current month
-    lastDate.setMonth(lastDate.getMonth() + 1);
 
     // Add months until we reach end date
-    while (currentDate < lastDate) {
+    while (currentDate <= lastDate) {
       months.push(currentDate.toISOString().slice(0, 7));
       currentDate.setMonth(currentDate.getMonth() + 1);
     }
