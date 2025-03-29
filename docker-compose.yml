@@ -7,6 +7,7 @@ services:
       - "3000:3000"
     environment:
       - REACT_APP_API_URL=http://localhost:5000
+      - NODE_OPTIONS=--max_old_space_size=1024
     networks:
       - app-network
     depends_on:
@@ -27,6 +28,7 @@ services:
       - JWT_SECRET=your-secret-key
       - GOOGLE_CLIENT_ID=${GOOGLE_CLIENT_ID:-optional}
       - GOOGLE_CLIENT_SECRET=${GOOGLE_CLIENT_SECRET:-optional}
+      - NODE_OPTIONS=--max_old_space_size=1024
     networks:
       - app-network
     depends_on:
