@@ -363,53 +363,53 @@ function Dashboard() {
             Budget Buddy
           </Typography>
           <Box sx={{ display: 'flex', gap: 1 }}>
-            <Button 
-              color="inherit" 
-              onClick={handleCategoryClick}
-              sx={{ 
+          <Button 
+            color="inherit" 
+            onClick={handleCategoryClick}
+            sx={{ 
                 color: 'rgba(255, 255, 255, 0.8)',
                 px: 2,
                 borderRadius: 2,
                 textTransform: 'none',
                 fontSize: '0.95rem',
-                '&:hover': {
+              '&:hover': {
                   backgroundColor: 'rgba(139, 92, 246, 0.1)'
-                }
-              }}
-            >
+              }
+            }}
+          >
               Categories
-            </Button>
-            <Button 
-              color="inherit"
+          </Button>
+          <Button 
+            color="inherit"
               onClick={() => navigate('/insights')}
-              sx={{ 
+            sx={{ 
                 color: 'rgba(255, 255, 255, 0.8)',
                 px: 2,
                 borderRadius: 2,
                 textTransform: 'none',
                 fontSize: '0.95rem',
-                '&:hover': {
+              '&:hover': {
                   backgroundColor: 'rgba(139, 92, 246, 0.1)'
-                }
-              }}
-            >
+              }
+            }}
+          >
               Insights
-            </Button>
-            <Button 
-              color="inherit"
-                sx={{
+          </Button>
+          <Button 
+            color="inherit"
+            sx={{ 
                 color: 'rgba(255, 255, 255, 0.8)',
                 px: 2,
                 borderRadius: 2,
                 textTransform: 'none',
                 fontSize: '0.95rem',
-                  '&:hover': {
+              '&:hover': {
                   backgroundColor: 'rgba(139, 92, 246, 0.1)'
-                }
-              }}
-            >
+              }
+            }}
+          >
               Profile
-            </Button>
+          </Button>
           <Button 
               variant="contained" 
               onClick={handleSignOut}
@@ -429,10 +429,10 @@ function Dashboard() {
               Sign Out
           </Button>
           </Box>
-          <Button
+          <Button 
             onClick={() => navigate('/budget')}
             startIcon={<AccountBalanceWalletIcon />}
-            sx={{
+            sx={{ 
               color: '#8b5cf6',
               borderColor: '#8b5cf6',
               '&:hover': {
@@ -448,7 +448,7 @@ function Dashboard() {
       </AppBar>
 
       <Box
-            sx={{ 
+        sx={{
           background: 'linear-gradient(135deg, #1e1e1e 0%, #2d2d2d 100%)',
           minHeight: '100vh',
           display: 'flex',
@@ -487,7 +487,7 @@ function Dashboard() {
             >
               <Box sx={{ position: 'relative', zIndex: 1 }}>
                 <Box sx={{ mb: 3 }}>
-                  <Typography 
+        <Typography 
                     variant="h6" 
                     sx={{ 
                       color: '#8b5cf6',
@@ -510,10 +510,10 @@ function Dashboard() {
                       }} 
                     />
                     Dashboard Overview
-                  </Typography>
-                  <Typography 
+        </Typography>
+        <Typography 
                     variant="h3" 
-                    sx={{ 
+          sx={{ 
                       fontWeight: 800,
                       fontSize: { xs: '2rem', sm: '2.5rem', md: '2.8rem' },
                       letterSpacing: '-0.5px',
@@ -574,7 +574,7 @@ function Dashboard() {
                     >
                       {user?.username?.toUpperCase()}
                     </Box>
-                  </Typography>
+        </Typography>
                 </Box>
                 <Box sx={{ 
                   display: 'flex', 
@@ -651,11 +651,11 @@ function Dashboard() {
                 position: 'relative',
                 zIndex: 1
               }}>
-              <Button 
-                  variant="contained"
+          <Button
+            variant="contained"
                   size="large"
                   onClick={() => setExpenseDialogOpen(true)}
-                sx={{ 
+            sx={{
                     bgcolor: '#8b5cf6',
                   color: 'white',
                     fontSize: '0.95rem',
@@ -677,24 +677,24 @@ function Dashboard() {
                       transform: 'translateX(-100%)',
                       transition: 'transform 0.6s'
                     },
-                  '&:hover': {
+              '&:hover': {
                       bgcolor: '#7c3aed',
                       transform: 'translateY(-2px)',
                       '&::before': {
                         transform: 'translateX(100%)'
-                  }
+              }
                     },
                     transition: 'all 0.3s ease'
-                }}
-              >
+            }}
+          >
                   Add Expense
-              </Button>
-              <Button 
-                variant="outlined" 
+          </Button>
+          <Button
+            variant="outlined"
                   size="large"
                   onClick={() => setSectionDialogOpen(true)}
-                sx={{ 
-                  color: 'white',
+            sx={{ 
+              color: 'white', 
                     borderColor: 'rgba(255, 255, 255, 0.5)',
                     fontSize: '0.95rem',
                     py: 1.8,
@@ -704,8 +704,8 @@ function Dashboard() {
                     fontWeight: 600,
                     backdropFilter: 'blur(10px)',
                     bgcolor: 'rgba(255, 255, 255, 0.05)',
-                  '&:hover': {
-                    borderColor: 'white',
+              '&:hover': {
+                borderColor: 'white',
                       bgcolor: 'rgba(255, 255, 255, 0.1)',
                       transform: 'translateY(-2px)',
                     },
@@ -713,11 +713,11 @@ function Dashboard() {
                   }}
                 >
                   Add Section
-              </Button>
+          </Button>
               </Box>
-            </Box>
-          </Box>
-          
+        </Box>
+      </Box>
+
           {/* Add Savings Progress Section */}
           <Box sx={{ flex: '1 1 40%', minWidth: { xs: '100%', md: '300px' } }}>
             {renderSavingsProgress()}
